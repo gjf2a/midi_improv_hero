@@ -13,6 +13,7 @@ use midi_fundsp::{
 use midi_improv_hero::setup_font;
 use midi_note_recorder::Recording;
 use midir::MidiInput;
+use music_analyzer_generator::PitchSequence;
 
 const TIMEOUT: f64 = 3.0;
 const NUM_CHANNELS: usize = 10;
@@ -105,6 +106,7 @@ impl Recorder {
 
 struct GameApp {
     recorder: Arc<Mutex<Recorder>>,
+    selected_recording: usize,
 }
 
 impl GameApp {
@@ -112,6 +114,7 @@ impl GameApp {
         setup_font("bravura/BravuraText.otf", cc)?;
         Ok(Self {
             recorder: Self::setup_threads()?,
+            selected_recording: 0,
         })
     }
 
@@ -158,6 +161,10 @@ fn start_monitor_thread(
     });
 }
 
+fn label(ui: &mut egui::Ui, text: &str) {
+    ui.add(egui::Label::new(text));
+}
+
 impl eframe::App for GameApp {
     fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
         ctx.set_visuals(Visuals::light());
@@ -165,8 +172,35 @@ impl eframe::App for GameApp {
             let heading = format!("MIDI Improv Hero ({})", self.port_name());
             ui.heading(heading);
             let recorder = self.recorder.lock().unwrap();
-            ui.add(egui::Label::new(format!("{} recordings", recorder.recordings.len())));
-            ui.add(egui::Label::new(format!("recording? {}", recorder.is_recording())));
+            if recorder.is_recording() {
+                label(ui, "recording in progress");
+            } else if recorder.recordings.is_empty() {
+                label(ui, "No recordings");
+            } else {
+                let current = if recorder.recordings.len() == 1 {
+                    label(ui, "One recording");
+                    &recorder.recordings[0]
+                } else {
+                    let recs = format!("{} recordings", recorder.recordings.len());
+                    label(ui, recs.as_str());
+                    ui.heading("Select a Recording");
+                    ui.add(
+                        egui::Slider::new(
+                            &mut self.selected_recording,
+                            0..=recorder.recordings.len() - 1,
+                        )
+                        .integer(),
+                    );
+                    &recorder.recordings[self.selected_recording]
+                };
+                let chords = PitchSequence::new(current).chords_starts_durations();
+                let chords_only = chords
+                    .iter()
+                    .map(|t| format!("{}", t.0))
+                    .collect::<Vec<_>>();
+                let cs = format!("{chords_only:?}");
+                label(ui, cs.as_str());
+            }
             ctx.request_repaint_after_secs(FRAME_INTERVAL);
         });
     }

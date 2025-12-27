@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 midi_note_recorder = {git = "https://github.com/gjf2a/midi_note_recorder"}
+music_analyzer_generator = {git = "https://github.com/gjf2a/music_analyzer_generator"}
 midi_fundsp = "0.6.7"
 anyhow = "1.0.100"
 eframe = "0.33.3"
