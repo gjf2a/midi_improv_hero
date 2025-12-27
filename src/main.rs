@@ -174,7 +174,12 @@ impl eframe::App for GameApp {
             let heading = format!("MIDI Improv Hero ({})", self.port_name());
             ui.heading(heading);
             let mut recorder = self.recorder.lock().unwrap();
-            ui.add(egui::Slider::new(&mut recorder.timeout, MIN_TIMEOUT..=MAX_TIMEOUT).text("Stop recording timeout"));
+            let timeout = recorder.timeout;
+            ui.add(
+                egui::Slider::new(&mut recorder.timeout, MIN_TIMEOUT..=MAX_TIMEOUT)
+                    .text(format!("Recording stops after {timeout} seconds"))
+                    .show_value(false),
+            );
             if recorder.is_recording() {
                 label(ui, "recording in progress");
             } else if recorder.recordings.is_empty() {
