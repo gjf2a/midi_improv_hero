@@ -1,7 +1,4 @@
-use std::{
-    sync::{Arc, Mutex},
-    time::Instant,
-};
+use std::sync::{Arc, Mutex};
 
 use crossbeam_queue::SegQueue;
 use crossbeam_utils::atomic::AtomicCell;
@@ -10,7 +7,10 @@ use midi_fundsp::{
     io::{SynthMsg, get_first_midi_device, start_input_thread, start_output_thread},
     sounds::options,
 };
-use midi_improv_hero::setup_font;
+use midi_improv_hero::{
+    recorder::{Recorder, RecordingMode},
+    setup_font,
+};
 use midi_note_recorder::Recording;
 use midir::MidiInput;
 use music_analyzer_generator::{ChordName, PitchSequence};
@@ -68,56 +68,27 @@ fn main() {
     .unwrap();
 }
 
-struct Recorder {
-    recordings: Vec<Recording>,
-    timeout: f64,
-    last_msg: Instant,
-    current_start: Instant,
-    input_port_name: String,
-    mode: RecordingMode,
-}
-
-impl Recorder {
-    fn new(timeout: f64, input_port_name: String) -> Self {
-        Self {
-            timeout,
-            recordings: vec![],
-            last_msg: Instant::now(),
-            current_start: Instant::now(),
-            input_port_name,
-            mode: RecordingMode::Playthrough,
-        }
-    }
-
-    fn in_recording_mode(&self) -> bool {
-        self.mode == RecordingMode::Record
-    }
-
-    fn actively_recording(&self) -> bool {
-        self.in_recording_mode()
-            && !self.recordings.is_empty()
-            && Instant::now().duration_since(self.last_msg).as_secs_f64() < self.timeout
-    }
-
-    fn receive(&mut self, msg: SynthMsg) {
-        if self.in_recording_mode() {
-            let now = Instant::now();
-            if !self.actively_recording() {
-                self.recordings.push(Recording::default());
-                self.current_start = now;
-            }
-            self.recordings.last_mut().unwrap().add_message(
-                now.duration_since(self.current_start).as_secs_f64(),
-                &msg.msg,
-            );
-            self.last_msg = now;
-        }
-    }
-}
-
 struct GameApp {
     recorder: Arc<Mutex<Recorder>>,
     selected_recording: usize,
+}
+
+impl eframe::App for GameApp {
+    fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
+        ctx.set_visuals(Visuals::light());
+        egui::CentralPanel::default().show(ctx, |ui| {
+            let heading = format!("MIDI Improv Hero ({})", self.port_name());
+            ui.heading(heading);
+            self.mode_buttons(ui);
+            match self.recording_mode() {
+                RecordingMode::Record => {
+                    self.render_recorder(ui);
+                    ctx.request_repaint_after_secs(FRAME_INTERVAL);
+                }
+                RecordingMode::Playthrough => {}
+            }
+        });
+    }
 }
 
 impl GameApp {
@@ -131,6 +102,11 @@ impl GameApp {
 
     fn port_name(&self) -> String {
         self.recorder.lock().unwrap().input_port_name.clone()
+    }
+
+    fn recording_mode(&self) -> RecordingMode {
+        let recorder = self.recorder.lock().unwrap();
+        recorder.mode
     }
 
     fn setup_threads() -> anyhow::Result<Arc<Mutex<Recorder>>> {
@@ -153,6 +129,55 @@ impl GameApp {
         start_output_thread::<NUM_CHANNELS>(monitor2output, Arc::new(Mutex::new(options())));
         Ok(recorder)
     }
+
+    fn mode_buttons(&mut self, ui: &mut egui::Ui) {
+        let mut recorder = self.recorder.lock().unwrap();
+        ui.radio_value(
+            &mut recorder.mode,
+            RecordingMode::Playthrough,
+            "Play Freely",
+        );
+        ui.radio_value(
+            &mut recorder.mode,
+            RecordingMode::Record,
+            "Record Accompaniment",
+        );
+    }
+
+    fn render_recorder(&mut self, ui: &mut egui::Ui) {
+        let mut recorder = self.recorder.lock().unwrap();
+        let timeout = recorder.timeout;
+        let suffix = if timeout == 1.0 { "second" } else { "seconds" };
+        ui.add(
+            egui::Slider::new(&mut recorder.timeout, MIN_TIMEOUT..=MAX_TIMEOUT)
+                .text(format!("Recording stops after {timeout} {suffix}"))
+                .show_value(false),
+        );
+        if recorder.actively_recording() {
+            label(ui, "recording in progress");
+        } else if recorder.recordings.is_empty() {
+            label(ui, "No recordings");
+        } else {
+            let current = if recorder.recordings.len() == 1 {
+                label(ui, "One recording");
+                &recorder.recordings[0]
+            } else {
+                let recs = format!("{} recordings", recorder.recordings.len());
+                label(ui, recs.as_str());
+                ui.heading("Select a Recording");
+                ui.add(
+                    egui::Slider::new(
+                        &mut self.selected_recording,
+                        0..=recorder.recordings.len() - 1,
+                    )
+                    .integer(),
+                );
+                &recorder.recordings[self.selected_recording]
+            };
+            let cs = format!("{}", chords_starts_string(current));
+            label(ui, cs.as_str());
+        }
+    }
 }
 
 fn start_monitor_thread(
@@ -174,70 +199,6 @@ fn start_monitor_thread(
 
 fn label(ui: &mut egui::Ui, text: &str) {
     ui.add(egui::Label::new(text));
-}
-
-#[derive(Copy, Clone, PartialEq, Eq)]
-enum RecordingMode {
-    Playthrough,
-    Record,
-}
-
-impl eframe::App for GameApp {
-    fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
-        ctx.set_visuals(Visuals::light());
-        egui::CentralPanel::default().show(ctx, |ui| {
-            let heading = format!("MIDI Improv Hero ({})", self.port_name());
-            ui.heading(heading);
-            let mut recorder = self.recorder.lock().unwrap();
-            ui.radio_value(
-                &mut recorder.mode,
-                RecordingMode::Playthrough,
-                "Play Freely",
-            );
-            ui.radio_value(
-                &mut recorder.mode,
-                RecordingMode::Record,
-                "Record Accompaniment",
-            );
-            match recorder.mode {
-                RecordingMode::Record => {
-                    let timeout = recorder.timeout;
-                    let suffix = if timeout == 1.0 { "second" } else { "seconds" };
-                    ui.add(
-                        egui::Slider::new(&mut recorder.timeout, MIN_TIMEOUT..=MAX_TIMEOUT)
-                            .text(format!("Recording stops after {timeout} {suffix}"))
-                            .show_value(false),
-                    );
-                    if recorder.actively_recording() {
-                        label(ui, "recording in progress");
-                    } else if recorder.recordings.is_empty() {
-                        label(ui, "No recordings");
-                    } else {
-                        let current = if recorder.recordings.len() == 1 {
-                            label(ui, "One recording");
-                            &recorder.recordings[0]
-                        } else {
-                            let recs = format!("{} recordings", recorder.recordings.len());
-                            label(ui, recs.as_str());
-                            ui.heading("Select a Recording");
-                            ui.add(
-                                egui::Slider::new(
-                                    &mut self.selected_recording,
-                                    0..=recorder.recordings.len() - 1,
-                                )
-                                .integer(),
-                            );
-                            &recorder.recordings[self.selected_recording]
-                        };
-                        let cs = format!("{}", chords_starts_string(current));
-                        label(ui, cs.as_str());
-                    }
-                    ctx.request_repaint_after_secs(FRAME_INTERVAL);
-                }
-                RecordingMode::Playthrough => {}
-            }
-        });
-    }
 }
 
 fn chords_starts(recording: &Recording) -> Vec<(ChordName, f64)> {

@@ -1,3 +1,5 @@
+pub mod recorder;
+
 use std::path::PathBuf;
 
 use eframe::egui::FontDefinitions;
