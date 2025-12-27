@@ -15,7 +15,9 @@ use midi_note_recorder::Recording;
 use midir::MidiInput;
 use music_analyzer_generator::PitchSequence;
 
-const TIMEOUT: f64 = 3.0;
+const MIN_TIMEOUT: f64 = 1.0;
+const MAX_TIMEOUT: f64 = 5.0;
+const DEFAULT_TIMEOUT: f64 = MIN_TIMEOUT;
 const NUM_CHANNELS: usize = 10;
 const FPS: f32 = 20.0;
 const FRAME_INTERVAL: f32 = 1.0 / FPS;
@@ -129,7 +131,7 @@ impl GameApp {
         let monitor2output = Arc::new(SegQueue::new());
         let quit = Arc::new(AtomicCell::new(false));
         let recorder = Arc::new(Mutex::new(Recorder::new(
-            TIMEOUT,
+            DEFAULT_TIMEOUT,
             midi_in.port_name(&in_port)?,
         )));
         start_input_thread(input2monitor.clone(), midi_in, in_port, quit.clone());
@@ -171,7 +173,8 @@ impl eframe::App for GameApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             let heading = format!("MIDI Improv Hero ({})", self.port_name());
             ui.heading(heading);
-            let recorder = self.recorder.lock().unwrap();
+            let mut recorder = self.recorder.lock().unwrap();
+            ui.add(egui::Slider::new(&mut recorder.timeout, MIN_TIMEOUT..=MAX_TIMEOUT).text("Stop recording timeout"));
             if recorder.is_recording() {
                 label(ui, "recording in progress");
             } else if recorder.recordings.is_empty() {
