@@ -16,6 +16,8 @@ use midir::MidiInput;
 
 const TIMEOUT: f64 = 3.0;
 const NUM_CHANNELS: usize = 10;
+const FPS: f32 = 20.0;
+const FRAME_INTERVAL: f32 = 1.0 / FPS;
 
 // Vision for this program
 //
@@ -82,14 +84,14 @@ impl Recorder {
         }
     }
 
-    fn is_playing(&self) -> bool {
+    fn is_recording(&self) -> bool {
         !self.recordings.is_empty()
             && Instant::now().duration_since(self.last_msg).as_secs_f64() < self.timeout
     }
 
     fn receive(&mut self, msg: SynthMsg) {
         let now = Instant::now();
-        if !self.is_playing() {
+        if !self.is_recording() {
             self.recordings.push(Recording::default());
             self.current_start = now;
         }
@@ -157,11 +159,15 @@ fn start_monitor_thread(
 }
 
 impl eframe::App for GameApp {
-    fn update(&mut self, ctx: &eframe::egui::Context, frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
         ctx.set_visuals(Visuals::light());
         egui::CentralPanel::default().show(ctx, |ui| {
             let heading = format!("MIDI Improv Hero ({})", self.port_name());
             ui.heading(heading);
+            let recorder = self.recorder.lock().unwrap();
+            ui.add(egui::Label::new(format!("{} recordings", recorder.recordings.len())));
+            ui.add(egui::Label::new(format!("recording? {}", recorder.is_recording())));
+            ctx.request_repaint_after_secs(FRAME_INTERVAL);
         });
     }
 }
