@@ -1,5 +1,4 @@
-use std::time::Instant;
-
+use std::{ops::Index, time::Instant};
 use midi_fundsp::io::SynthMsg;
 use midi_note_recorder::Recording;
 
@@ -10,11 +9,11 @@ pub enum RecordingMode {
 }
 
 pub struct Recorder {
-    pub recordings: Vec<Recording>,
+    recordings: Vec<Recording>,
     pub timeout: f64,
     last_msg: Instant,
     current_start: Instant,
-    pub input_port_name: String,
+    input_port_name: String,
     pub mode: RecordingMode,
 }
 
@@ -28,6 +27,18 @@ impl Recorder {
             input_port_name,
             mode: RecordingMode::Playthrough,
         }
+    }
+
+    pub fn len(&self) -> usize {
+        self.recordings.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    pub fn input_port_name(&self) -> &str {
+        self.input_port_name.as_str()
     }
 
     pub fn in_recording_mode(&self) -> bool {
@@ -53,5 +64,13 @@ impl Recorder {
             );
             self.last_msg = now;
         }
+    }
+}
+
+impl Index<usize> for Recorder {
+    type Output = Recording;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.recordings[index]
     }
 }

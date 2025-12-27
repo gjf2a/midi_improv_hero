@@ -101,7 +101,7 @@ impl GameApp {
     }
 
     fn port_name(&self) -> String {
-        self.recorder.lock().unwrap().input_port_name.clone()
+        self.recorder.lock().unwrap().input_port_name().to_string()
     }
 
     fn recording_mode(&self) -> RecordingMode {
@@ -155,24 +155,24 @@ impl GameApp {
         );
         if recorder.actively_recording() {
             label(ui, "recording in progress");
-        } else if recorder.recordings.is_empty() {
+        } else if recorder.is_empty() {
             label(ui, "No recordings");
         } else {
-            let current = if recorder.recordings.len() == 1 {
+            let current = if recorder.len() == 1 {
                 label(ui, "One recording");
-                &recorder.recordings[0]
+                &recorder[0]
             } else {
-                let recs = format!("{} recordings", recorder.recordings.len());
+                let recs = format!("{} recordings", recorder.len());
                 label(ui, recs.as_str());
                 ui.heading("Select a Recording");
                 ui.add(
                     egui::Slider::new(
                         &mut self.selected_recording,
-                        0..=recorder.recordings.len() - 1,
+                        0..=recorder.len() - 1,
                     )
                     .integer(),
                 );
-                &recorder.recordings[self.selected_recording]
+                &recorder[self.selected_recording]
             };
             let cs = format!("{}", chords_starts_string(current));
             label(ui, cs.as_str());
