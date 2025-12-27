@@ -175,9 +175,10 @@ impl eframe::App for GameApp {
             ui.heading(heading);
             let mut recorder = self.recorder.lock().unwrap();
             let timeout = recorder.timeout;
+            let suffix = if timeout == 1.0 {"second"} else {"seconds"};
             ui.add(
                 egui::Slider::new(&mut recorder.timeout, MIN_TIMEOUT..=MAX_TIMEOUT)
-                    .text(format!("Recording stops after {timeout} seconds"))
+                    .text(format!("Recording stops after {timeout} {suffix}"))
                     .show_value(false),
             );
             if recorder.is_recording() {
@@ -204,7 +205,7 @@ impl eframe::App for GameApp {
                 let chords = PitchSequence::new(current).chords_starts_durations();
                 let chords_only = chords
                     .iter()
-                    .map(|t| format!("{}", t.0))
+                    .map(|t| format!("{}", t.0.name()))
                     .collect::<Vec<_>>();
                 let cs = format!("{chords_only:?}");
                 label(ui, cs.as_str());
