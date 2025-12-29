@@ -3,6 +3,7 @@ use std::sync::{Arc, Mutex};
 use crossbeam_queue::SegQueue;
 use crossbeam_utils::atomic::AtomicCell;
 use eframe::egui::{self, Pos2, Vec2, Visuals};
+use enum_iterator::all;
 use midi_fundsp::{
     io::{SynthMsg, get_first_midi_device, start_input_thread, start_output_thread},
     sounds::options,
@@ -85,6 +86,17 @@ impl eframe::App for GameApp {
                     self.render_recorder(ui);
                     ctx.request_repaint_after_secs(FRAME_INTERVAL);
                 }
+                RecordingMode::SoloOver => {
+                    self.render_recorder(ui);
+                    let mut recorder = self.recorder.lock().unwrap();
+                    if recorder.actively_soloing() {
+                        ui.label("Soloing...");
+                    } else {
+                        if ui.button("Start accompaniment").clicked() {
+                            recorder.start_solo_thread(self.selected_recording);
+                        }
+                    }
+                }
                 RecordingMode::Playthrough => {}
             }
         });
@@ -117,6 +129,8 @@ impl GameApp {
         let quit = Arc::new(AtomicCell::new(false));
         let recorder = Arc::new(Mutex::new(Recorder::new(
             DEFAULT_TIMEOUT,
+            input2monitor.clone(),
+            monitor2output.clone(),
             midi_in.port_name(&in_port)?,
         )));
         start_input_thread(input2monitor.clone(), midi_in, in_port, quit.clone());
@@ -132,16 +146,11 @@ impl GameApp {
 
     fn mode_buttons(&mut self, ui: &mut egui::Ui) {
         let mut recorder = self.recorder.lock().unwrap();
-        ui.radio_value(
-            &mut recorder.mode,
-            RecordingMode::Playthrough,
-            "Play Freely",
-        );
-        ui.radio_value(
-            &mut recorder.mode,
-            RecordingMode::Record,
-            "Record Accompaniment",
-        );
+        ui.horizontal(|ui| {
+            for option in all::<RecordingMode>() {
+                ui.radio_value(&mut recorder.mode, option, option.text());
+            }
+        });
     }
 
     fn render_recorder(&mut self, ui: &mut egui::Ui) {
@@ -154,28 +163,29 @@ impl GameApp {
                 .show_value(false),
         );
         if recorder.actively_recording() {
-            label(ui, "recording in progress");
+            ui.label("recording in progress");
         } else if recorder.is_empty() {
-            label(ui, "No recordings");
+            ui.label("No recordings");
         } else {
             let current = if recorder.len() == 1 {
-                label(ui, "One recording");
+                ui.label("One recording");
                 &recorder[0]
             } else {
                 let recs = format!("{} recordings", recorder.len());
-                label(ui, recs.as_str());
+                ui.label(recs.as_str());
                 ui.heading("Select a Recording");
                 ui.add(
-                    egui::Slider::new(
-                        &mut self.selected_recording,
-                        0..=recorder.len() - 1,
-                    )
-                    .integer(),
+                    egui::Slider::new(&mut self.selected_recording, 0..=recorder.len() - 1)
+                        .integer(),
                 );
                 &recorder[self.selected_recording]
             };
-            let cs = format!("{}", chords_starts_string(current));
-            label(ui, cs.as_str());
+            let cs = format!(
+                "{:.2}s; {}",
+                current.duration(),
+                chords_starts_string(current)
+            );
+            ui.label(cs.as_str());
         }
     }
 }
@@ -195,10 +205,6 @@ fn start_monitor_thread(
             }
         }
     });
-}
-
-fn label(ui: &mut egui::Ui, text: &str) {
-    ui.add(egui::Label::new(text));
 }
 
 fn chords_starts(recording: &Recording) -> Vec<(ChordName, f64)> {
