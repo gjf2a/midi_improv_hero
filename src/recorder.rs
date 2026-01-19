@@ -1,6 +1,6 @@
 use crossbeam_queue::SegQueue;
 use enum_iterator::Sequence;
-use midi_fundsp::io::SynthMsg;
+use midi_fundsp::io::{Speaker, SynthMsg};
 use midi_note_recorder::Recording;
 use std::{ops::Index, sync::Arc, time::Instant};
 
@@ -35,7 +35,12 @@ pub struct Recorder {
 }
 
 impl Recorder {
-    pub fn new(timeout: f64, incoming: Arc<SegQueue<SynthMsg>>, outgoing: Arc<SegQueue<SynthMsg>>, input_port_name: String) -> Self {
+    pub fn new(
+        timeout: f64,
+        incoming: Arc<SegQueue<SynthMsg>>,
+        outgoing: Arc<SegQueue<SynthMsg>>,
+        input_port_name: String,
+    ) -> Self {
         Self {
             timeout,
             accompaniments: vec![],
@@ -48,6 +53,10 @@ impl Recorder {
             input_port_name,
             mode: RecordingMode::Playthrough,
         }
+    }
+
+    pub fn program_change(&self, program: u8, speaker: Speaker) {
+        self.outgoing.push(SynthMsg::program_change(program, speaker));
     }
 
     pub fn len(&self) -> usize {
@@ -112,9 +121,9 @@ impl Recorder {
         std::thread::spawn(move || {
             backing.playback_loop(None, outgoing, |msg| SynthMsg {
                 msg: msg,
-                speaker: midi_fundsp::io::Speaker::Both,
+                speaker: midi_fundsp::io::Speaker::Left,
             });
-            incoming.push(SynthMsg::all_notes_off(midi_fundsp::io::Speaker::Both));
+            incoming.push(SynthMsg::all_notes_off(midi_fundsp::io::Speaker::Left));
         });
     }
 }

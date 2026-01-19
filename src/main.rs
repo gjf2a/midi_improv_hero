@@ -5,8 +5,7 @@ use crossbeam_utils::atomic::AtomicCell;
 use eframe::egui::{self, Pos2, Vec2, Visuals};
 use enum_iterator::all;
 use midi_fundsp::{
-    io::{SynthMsg, get_first_midi_device, start_input_thread, start_output_thread},
-    sounds::options,
+    io::{Speaker, SynthMsg, get_first_midi_device, start_input_thread, start_output_thread}, sound_builders::ProgramTable, sounds::favorites
 };
 use midi_improv_hero::{
     recorder::{Recorder, RecordingMode},
@@ -16,9 +15,9 @@ use midi_note_recorder::Recording;
 use midir::MidiInput;
 use music_analyzer_generator::{ChordName, PitchSequence};
 
-const MIN_TIMEOUT: f64 = 1.0;
-const MAX_TIMEOUT: f64 = 5.0;
-const DEFAULT_TIMEOUT: f64 = MIN_TIMEOUT;
+const MIN_TIMEOUT: f64 = 0.25;
+const MAX_TIMEOUT: f64 = 3.0;
+const DEFAULT_TIMEOUT: f64 = 0.5;
 const NUM_CHANNELS: usize = 10;
 const FPS: f32 = 20.0;
 const FRAME_INTERVAL: f32 = 1.0 / FPS;
@@ -72,6 +71,9 @@ fn main() {
 struct GameApp {
     recorder: Arc<Mutex<Recorder>>,
     selected_recording: usize,
+    synth_sounds: ProgramTable,
+    accompaniment_sound: usize,
+    solo_sound: usize,
 }
 
 impl eframe::App for GameApp {
@@ -97,7 +99,9 @@ impl eframe::App for GameApp {
                         }
                     }
                 }
-                RecordingMode::Playthrough => {}
+                RecordingMode::Playthrough => {
+                    self.render_settings(ui);
+                }
             }
         });
     }
@@ -106,9 +110,13 @@ impl eframe::App for GameApp {
 impl GameApp {
     fn new(cc: &eframe::CreationContext<'_>) -> anyhow::Result<Self> {
         setup_font("bravura/BravuraText.otf", cc)?;
+        let synth_sounds = favorites();
         Ok(Self {
-            recorder: Self::setup_threads()?,
+            recorder: Self::setup_threads(synth_sounds.clone())?,
             selected_recording: 0,
+            synth_sounds,
+            accompaniment_sound: 0,
+            solo_sound: 0,
         })
     }
 
@@ -121,7 +129,7 @@ impl GameApp {
         recorder.mode
     }
 
-    fn setup_threads() -> anyhow::Result<Arc<Mutex<Recorder>>> {
+    fn setup_threads(synth_sounds: ProgramTable) -> anyhow::Result<Arc<Mutex<Recorder>>> {
         let mut midi_in = MidiInput::new("midir reading input")?;
         let in_port = get_first_midi_device(&mut midi_in)?;
         let input2monitor = Arc::new(SegQueue::new());
@@ -140,7 +148,7 @@ impl GameApp {
             quit,
             recorder.clone(),
         );
-        start_output_thread::<NUM_CHANNELS>(monitor2output, Arc::new(Mutex::new(options())));
+        start_output_thread::<NUM_CHANNELS>(monitor2output, Arc::new(Mutex::new(synth_sounds)));
         Ok(recorder)
     }
 
@@ -188,6 +196,33 @@ impl GameApp {
             ui.label(cs.as_str());
         }
     }
+
+    fn render_settings(&mut self, ui: &mut egui::Ui) {
+        let sounds = self.synth_sounds.iter().map(|(n,_)| n.clone()).collect::<Vec<_>>();
+        ui.horizontal(|ui| {
+            if let Some(changed) = Self::render_synth_sounds("Accompaniment", &mut self.accompaniment_sound, &sounds, ui) {
+                self.recorder.lock().unwrap().program_change(changed as u8, Speaker::Left);
+            }
+            if let Some(changed) = Self::render_synth_sounds("Solo", &mut self.solo_sound, &sounds, ui) {
+                self.recorder.lock().unwrap().program_change(changed as u8, Speaker::Right);
+            }
+        });
+    }
+
+    fn render_synth_sounds(label: &str, target: &mut usize, sounds: &Vec<String>, ui: &mut egui::Ui) -> Option<usize> {
+        let start = *target;
+        ui.vertical(|ui| {
+            ui.label(label);
+            for (i, name) in sounds.iter().enumerate() {
+                ui.radio_value(target, i, name);
+            }
+        });
+        if start != *target {
+            Some(*target)
+        } else {
+            None
+        }
+    }
 }
 
 fn start_monitor_thread(
@@ -199,8 +234,10 @@ fn start_monitor_thread(
     std::thread::spawn(move || {
         while !quit.load() {
             if let Some(msg) = incoming.pop() {
-                outgoing.push(msg.clone());
                 let mut recorder = recorder.lock().unwrap();
+                let mut outgoing_msg = msg.clone();
+                outgoing_msg.speaker = if recorder.actively_soloing() {Speaker::Right} else {Speaker::Left};
+                outgoing.push(outgoing_msg);
                 recorder.receive(msg);
             }
         }
