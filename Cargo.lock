@@ -2001,7 +2001,8 @@ dependencies = [
 [[package]]
 name = "midi_fundsp"
 version = "0.7.0"
-source = "git+https://github.com/gjf2a/midi_fundsp#84e3de4ea659da42162006db67d413d909a47427"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "64b084dddce9c91ee9769326749d959fbd42ce158d014e74f359f85185cfbc2a"
 dependencies = [
  "anyhow",
  "bare_metal_modulo",
