@@ -24,6 +24,7 @@ impl RecordingMode {
 pub struct Recorder {
     pub timeout: f64,
     pub mode: RecordingMode,
+    pub free_speaker: Speaker,
     accompaniments: Vec<Recording>,
     solos: Vec<Recording>,
     solo_duration: Option<f64>,
@@ -52,6 +53,15 @@ impl Recorder {
             current_start: Instant::now(),
             input_port_name,
             mode: RecordingMode::Playthrough,
+            free_speaker: Speaker::Left,
+        }
+    }
+
+    pub fn live_speaker(&self) -> Speaker {
+        match self.mode {
+            RecordingMode::Playthrough => self.free_speaker,
+            RecordingMode::Record => Speaker::Left,
+            RecordingMode::SoloOver => Speaker::Right,
         }
     }
 

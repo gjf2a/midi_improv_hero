@@ -17,7 +17,7 @@ use music_analyzer_generator::{ChordName, PitchSequence};
 
 const MIN_TIMEOUT: f64 = 0.25;
 const MAX_TIMEOUT: f64 = 3.0;
-const DEFAULT_TIMEOUT: f64 = 0.5;
+const DEFAULT_TIMEOUT: f64 = 1.0;
 const NUM_CHANNELS: usize = 10;
 const FPS: f32 = 20.0;
 const FRAME_INTERVAL: f32 = 1.0 / FPS;
@@ -200,6 +200,12 @@ impl GameApp {
     fn render_settings(&mut self, ui: &mut egui::Ui) {
         let sounds = self.synth_sounds.iter().map(|(n,_)| n.clone()).collect::<Vec<_>>();
         ui.horizontal(|ui| {
+            let mut recorder = self.recorder.lock().unwrap();
+            ui.radio_value(&mut recorder.free_speaker, Speaker::Left, "Left Speaker");
+            ui.radio_value(&mut recorder.free_speaker, Speaker::Right, "Right Speaker");
+        });
+        
+        ui.horizontal(|ui| {
             if let Some(changed) = Self::render_synth_sounds("Accompaniment", &mut self.accompaniment_sound, &sounds, ui) {
                 self.recorder.lock().unwrap().program_change(changed as u8, Speaker::Left);
             }
@@ -236,7 +242,7 @@ fn start_monitor_thread(
             if let Some(msg) = incoming.pop() {
                 let mut recorder = recorder.lock().unwrap();
                 let mut outgoing_msg = msg.clone();
-                outgoing_msg.speaker = if recorder.actively_soloing() {Speaker::Right} else {Speaker::Left};
+                outgoing_msg.speaker = recorder.live_speaker();
                 outgoing.push(outgoing_msg);
                 recorder.receive(msg);
             }
