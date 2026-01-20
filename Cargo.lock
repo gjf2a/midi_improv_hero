@@ -2035,7 +2035,7 @@ dependencies = [
 [[package]]
 name = "midi_note_recorder"
 version = "0.1.5"
-source = "git+https://github.com/gjf2a/midi_note_recorder#c70ffa128231bc62a2c3b93fa387454f4acbe333"
+source = "git+https://github.com/gjf2a/midi_note_recorder#e99cf76d36145ac610d38dd61c16d599cdda395f"
 dependencies = [
  "anyhow",
  "crossbeam-queue",
@@ -2084,7 +2084,7 @@ dependencies = [
 [[package]]
 name = "music_analyzer_generator"
 version = "0.1.0"
-source = "git+https://github.com/gjf2a/music_analyzer_generator#77e019d7a86ce2a4f2eb3f368b5c595dac0578eb"
+source = "git+https://github.com/gjf2a/music_analyzer_generator#dbd750dd4bf4cefcbbcb7d817014f0f79d3af2fd"
 dependencies = [
  "enum-iterator",
  "midi-msg",

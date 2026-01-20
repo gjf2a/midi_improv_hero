@@ -3,6 +3,21 @@ pub mod recorder;
 use std::path::PathBuf;
 
 use eframe::egui::FontDefinitions;
+use midi_note_recorder::Recording;
+use music_analyzer_generator::{ChordName, PitchSequence};
+
+pub fn chords_starts(recording: &Recording) -> Vec<(ChordName, f64)> {
+    let mut result = vec![];
+    for (chord, start, _) in PitchSequence::new(recording).chords_starts_durations() {
+        let push = result
+            .last()
+            .map_or(true, |(last_name, _)| *last_name != chord.name());
+        if push {
+            result.push((chord.name(), start));
+        }
+    }
+    result
+}
 
 pub fn filename_sans_suffix(path: &PathBuf) -> String {
     path.file_name()

@@ -4,6 +4,8 @@ use midi_fundsp::io::{Speaker, SynthMsg};
 use midi_note_recorder::Recording;
 use std::{ops::Index, sync::Arc, time::Instant};
 
+use crate::chords_starts;
+
 #[derive(Sequence, Copy, Clone, PartialEq, Eq, Debug)]
 pub enum RecordingMode {
     Playthrough,
@@ -97,7 +99,17 @@ impl Recorder {
             RecordingMode::Record => {
                 let now = Instant::now();
                 if !self.actively_recording() {
-                    self.accompaniments.push(Recording::default());
+                    let mut needs_new_blank = true;
+                    if let Some(most_recent) = self.accompaniments.last_mut() {
+                        let chords = chords_starts(most_recent);
+                        if chords.len() == 0 {
+                            most_recent.clear();
+                            needs_new_blank = false;
+                        }
+                    }
+                    if needs_new_blank {
+                        self.accompaniments.push(Recording::default());
+                    }
                     self.current_start = now;
                 }
                 self.accompaniments.last_mut().unwrap().add_message(

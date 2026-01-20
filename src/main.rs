@@ -10,12 +10,10 @@ use midi_fundsp::{
     sounds::favorites,
 };
 use midi_improv_hero::{
-    recorder::{Recorder, RecordingMode},
-    setup_font,
+    chords_starts, recorder::{Recorder, RecordingMode}, setup_font
 };
 use midi_note_recorder::Recording;
 use midir::MidiInput;
-use music_analyzer_generator::{ChordName, PitchSequence};
 
 const MIN_TIMEOUT: f64 = 0.25;
 const MAX_TIMEOUT: f64 = 3.0;
@@ -187,6 +185,9 @@ impl GameApp {
         let painter = ui.painter();
         let chord_starts = chords_starts(current);
         let painter_box = painter.clip_rect();
+        let name_str = chord_starts.iter().map(|(c,d)| format!(" {} {d:.2}", c.compact_name())).collect::<String>();
+        println!("rendering{name_str}");
+        println!("{} {}", current.duration(), current.len());
         for (chord, start) in chord_starts {
             painter.text(
                 Pos2 {
@@ -291,17 +292,4 @@ fn start_monitor_thread(
             }
         }
     });
-}
-
-fn chords_starts(recording: &Recording) -> Vec<(ChordName, f64)> {
-    let mut result = vec![];
-    for (chord, start, _) in PitchSequence::new(recording).chords_starts_durations() {
-        let push = result
-            .last()
-            .map_or(true, |(last_name, _)| *last_name != chord.name());
-        if push {
-            result.push((chord.name(), start));
-        }
-    }
-    result
 }
