@@ -182,7 +182,7 @@ impl GameApp {
                 .text(format!("Recording stops after {timeout} {suffix}"))
                 .show_value(false),
         );
-        if recorder.actively_recording() {
+        if recorder.actively_recording() && !recorder.actively_soloing() {
             ui.label("recording in progress");
         } else if recorder.is_empty() {
             ui.label("No recordings");
