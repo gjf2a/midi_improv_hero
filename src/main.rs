@@ -197,6 +197,7 @@ impl GameApp {
             .collect::<String>();
         println!("rendering{name_str}");
         println!("{} {}", current.duration(), current.len());
+        println!("{current:?}");
         for (chord, start) in chord_starts {
             painter.text(
                 Pos2 {

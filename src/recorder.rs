@@ -1,7 +1,7 @@
 use crossbeam_queue::SegQueue;
 use enum_iterator::Sequence;
 use midi_fundsp::io::{Speaker, SynthMsg};
-use midi_note_recorder::Recording;
+use midi_note_recorder::{Recording, note_velocity_from};
 use std::{ops::Index, sync::Arc, time::Instant};
 
 use crate::chords_starts;
@@ -100,8 +100,16 @@ impl Recorder {
     }
 
     pub fn actively_recording(&self) -> bool {
-        !self.accompaniments.is_empty()
-            && Instant::now().duration_since(self.last_msg).as_secs_f64() < self.timeout
+        if let Some(recent) = self.accompaniments.last() {
+            if let Some((_, last_msg)) = recent.last() {
+                if let Some((_, velocity)) = note_velocity_from(&last_msg) {
+                    return velocity > 0
+                        || Instant::now().duration_since(self.last_msg).as_secs_f64()
+                            < self.timeout;
+                }
+            }
+        }
+        false
     }
 
     pub fn actively_soloing(&self) -> bool {

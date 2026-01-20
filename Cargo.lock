@@ -2000,9 +2000,9 @@ dependencies = [
 
 [[package]]
 name = "midi_fundsp"
-version = "0.7.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "64b084dddce9c91ee9769326749d959fbd42ce158d014e74f359f85185cfbc2a"
+checksum = "365b09ef03acdcda88b859b7e38f88297e0d75704b58704fee11e8b7196927a1"
 dependencies = [
  "anyhow",
  "bare_metal_modulo",
@@ -2035,7 +2035,7 @@ dependencies = [
 [[package]]
 name = "midi_note_recorder"
 version = "0.1.5"
-source = "git+https://github.com/gjf2a/midi_note_recorder#e99cf76d36145ac610d38dd61c16d599cdda395f"
+source = "git+https://github.com/gjf2a/midi_note_recorder#259bf0e8c03bc95bdd25414a93e642af593a131a"
 dependencies = [
  "anyhow",
  "crossbeam-queue",
