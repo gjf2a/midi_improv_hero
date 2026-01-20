@@ -188,7 +188,16 @@ impl GameApp {
         let chord_starts = chords_starts(current);
         let painter_box = painter.clip_rect();
         for (chord, start) in chord_starts {
-            painter.text(Pos2 { x: (start / current.duration()) as f32 * painter_box.width(), y: painter_box.height() * 0.75 }, Align2::LEFT_TOP, format!("{chord}"), FontId::default(), Color32::BLUE);
+            painter.text(
+                Pos2 {
+                    x: (start / current.duration()) as f32 * painter_box.width(),
+                    y: painter_box.height() * 0.75,
+                },
+                Align2::LEFT_TOP,
+                chord.compact_name(),
+                FontId::default(),
+                Color32::BLUE,
+            );
         }
     }
 
