@@ -1,8 +1,10 @@
 use crossbeam_queue::SegQueue;
 use enum_iterator::Sequence;
 use midi_fundsp::io::{Speaker, SynthMsg};
-use midi_note_recorder::{Recording, note_velocity_from};
+use midi_note_recorder::Recording;
 use std::{ops::Index, sync::Arc, time::Instant};
+use crossbeam_utils::atomic::AtomicCell;
+use midi_fundsp::note_velocity_from;
 
 use crate::chords_starts;
 
@@ -146,7 +148,11 @@ impl Recorder {
         }
     }
 
-    pub fn start_solo_thread(&mut self, selected: usize) {
+    pub fn start_solo_thread(
+        &mut self,
+        selected: usize,
+        playback_progress: Arc<AtomicCell<Option<f64>>>,
+    ) {
         assert_eq!(self.mode, RecordingMode::SoloOver);
         let backing = self.accompaniments[selected].clone();
         self.solo_duration = Some(backing.duration());
@@ -155,10 +161,15 @@ impl Recorder {
         let incoming = self.incoming.clone();
         let outgoing = self.outgoing.clone();
         std::thread::spawn(move || {
-            backing.playback_loop(None, outgoing, |msg| SynthMsg {
-                msg: msg,
-                speaker: midi_fundsp::io::Speaker::Left,
-            });
+            backing.playback_loop(
+                None,
+                outgoing,
+                |msg| SynthMsg {
+                    msg: msg,
+                    speaker: midi_fundsp::io::Speaker::Left,
+                },
+                playback_progress.clone(),
+            );
             incoming.push(SynthMsg::all_notes_off(midi_fundsp::io::Speaker::Left));
         });
     }

@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use crossbeam_queue::SegQueue;
 use crossbeam_utils::atomic::AtomicCell;
-use eframe::egui::{self, Align2, Color32, FontId, Pos2, Vec2, Visuals};
+use eframe::egui::{self, Align2, Color32, FontId, Pos2, Stroke, Vec2, Visuals};
 use enum_iterator::all;
 use midi_fundsp::{
     io::{Speaker, SynthMsg, get_first_midi_device, start_input_thread, start_output_thread},
@@ -76,6 +76,7 @@ struct GameApp {
     synth_sounds: ProgramTable,
     accompaniment_sound: usize,
     solo_sound: usize,
+    playback_progress: Arc<AtomicCell<Option<f64>>>,
 }
 
 impl eframe::App for GameApp {
@@ -97,9 +98,13 @@ impl eframe::App for GameApp {
                         ui.label("Soloing...");
                     } else {
                         if ui.button("Start accompaniment").clicked() {
-                            recorder.start_solo_thread(self.selected_recording);
+                            recorder.start_solo_thread(
+                                self.selected_recording,
+                                self.playback_progress.clone(),
+                            );
                         }
                     }
+                    ctx.request_repaint_after_secs(FRAME_INTERVAL);
                 }
                 RecordingMode::Playthrough => {
                     self.render_settings(ui);
@@ -119,6 +124,7 @@ impl GameApp {
             synth_sounds,
             accompaniment_sound: 0,
             solo_sound: 0,
+            playback_progress: Arc::new(AtomicCell::new(None)),
         })
     }
 
@@ -183,21 +189,14 @@ impl GameApp {
         } else {
             let current =
                 Self::render_recording_header(ui, &mut self.selected_recording, &recorder);
-            Self::show_chords(ui, current);
+            Self::show_chords(ui, current, self.playback_progress.clone());
         }
     }
 
-    fn show_chords(ui: &mut egui::Ui, current: &Recording) {
+    fn show_chords(ui: &mut egui::Ui, current: &Recording, playback_progress: Arc<AtomicCell<Option<f64>>>) {
         let painter = ui.painter();
         let chord_starts = chords_starts(current);
         let painter_box = painter.clip_rect();
-        let name_str = chord_starts
-            .iter()
-            .map(|(c, d)| format!(" {} {d:.2}", c.compact_name()))
-            .collect::<String>();
-        println!("rendering{name_str}");
-        println!("{} {}", current.duration(), current.len());
-        println!("{current:?}");
         for (chord, start) in chord_starts {
             painter.text(
                 Pos2 {
@@ -208,6 +207,18 @@ impl GameApp {
                 chord.compact_name(),
                 FontId::default(),
                 Color32::BLUE,
+            );
+        }
+        if let Some(progress) = playback_progress.load() {
+            let x = (progress / current.duration()) as f32 * painter_box.width();
+            let y1 = 0.0;
+            let y2 = painter_box.height();
+            painter.line_segment(
+                [Pos2 { x, y: y1 }, Pos2 { x, y: y2 }],
+                Stroke {
+                    width: 5.0,
+                    color: Color32::GREEN,
+                },
             );
         }
     }
