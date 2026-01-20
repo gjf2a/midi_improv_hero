@@ -1,10 +1,10 @@
 use crossbeam_queue::SegQueue;
+use crossbeam_utils::atomic::AtomicCell;
 use enum_iterator::Sequence;
 use midi_fundsp::io::{Speaker, SynthMsg};
+use midi_fundsp::note_velocity_from;
 use midi_note_recorder::Recording;
 use std::{ops::Index, sync::Arc, time::Instant};
-use crossbeam_utils::atomic::AtomicCell;
-use midi_fundsp::note_velocity_from;
 
 use crate::chords_starts;
 

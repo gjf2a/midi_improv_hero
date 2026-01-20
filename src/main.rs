@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use crossbeam_queue::SegQueue;
 use crossbeam_utils::atomic::AtomicCell;
-use eframe::egui::{self, Align2, Color32, FontId, Pos2, Stroke, Vec2, Visuals};
+use eframe::egui::{self, Align2, Color32, FontId, Painter, Pos2, Stroke, Vec2, Visuals};
 use enum_iterator::all;
 use midi_fundsp::{
     io::{Speaker, SynthMsg, get_first_midi_device, start_input_thread, start_output_thread},
@@ -16,6 +16,7 @@ use midi_improv_hero::{
 };
 use midi_note_recorder::Recording;
 use midir::MidiInput;
+use music_analyzer_generator::ChordName;
 
 const MIN_TIMEOUT: f64 = 0.25;
 const MAX_TIMEOUT: f64 = 3.0;
@@ -193,14 +194,23 @@ impl GameApp {
         }
     }
 
-    fn show_chords(ui: &mut egui::Ui, current: &Recording, playback_progress: Arc<AtomicCell<Option<f64>>>) {
+    fn show_chords(
+        ui: &mut egui::Ui,
+        current: &Recording,
+        playback_progress: Arc<AtomicCell<Option<f64>>>,
+    ) {
         let painter = ui.painter();
         let chord_starts = chords_starts(current);
+        Self::paint_spaced_chords(painter, &chord_starts, current.duration());
+        Self::paint_progress_bar(painter, current.duration(), playback_progress.clone());
+    }
+
+    fn paint_spaced_chords(painter: &Painter, chord_starts: &Vec<(ChordName, f64)>, duration: f64) {
         let painter_box = painter.clip_rect();
         for (chord, start) in chord_starts {
             painter.text(
                 Pos2 {
-                    x: (start / current.duration()) as f32 * painter_box.width(),
+                    x: (start / duration) as f32 * painter_box.width(),
                     y: painter_box.height() * 0.75,
                 },
                 Align2::LEFT_TOP,
@@ -209,12 +219,24 @@ impl GameApp {
                 Color32::BLUE,
             );
         }
+    }
+
+    fn paint_progress_bar(
+        painter: &Painter,
+        duration: f64,
+        playback_progress: Arc<AtomicCell<Option<f64>>>,
+    ) {
         if let Some(progress) = playback_progress.load() {
-            let x = (progress / current.duration()) as f32 * painter_box.width();
-            let y1 = 0.0;
-            let y2 = painter_box.height();
+            let painter_box = painter.clip_rect();
+            let x = (progress / duration) as f32 * painter_box.width();
             painter.line_segment(
-                [Pos2 { x, y: y1 }, Pos2 { x, y: y2 }],
+                [
+                    Pos2 { x, y: 0.0 },
+                    Pos2 {
+                        x,
+                        y: painter_box.height(),
+                    },
+                ],
                 Stroke {
                     width: 5.0,
                     color: Color32::GREEN,
