@@ -179,13 +179,17 @@ impl GameApp {
         } else {
             let current =
                 Self::render_recording_header(ui, &mut self.selected_recording, &recorder);
-            let cs = format!(
-                "{:.2}s; {}",
-                current.duration(),
-                chords_starts_string(current)
-            );
-            ui.label(cs.as_str());
+            Self::show_chords(ui, current);
         }
+    }
+
+    fn show_chords(ui: &mut egui::Ui, current: &Recording) {
+        let cs = format!(
+            "{:.2}s; {}",
+            current.duration(),
+            chords_starts_string(current)
+        );
+        ui.label(cs.as_str());
     }
 
     fn render_recording_header<'a>(
