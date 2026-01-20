@@ -76,6 +76,21 @@ impl Recorder {
         self.accompaniments.len()
     }
 
+    pub fn last_accompaniment_spurious(&self) -> bool {
+        if let Some(most_recent) = self.accompaniments.last() {
+            let chords = chords_starts(most_recent);
+            chords.len() == 0
+        } else {
+            false
+        }
+    }
+
+    pub fn delete_last_accompaniment(&mut self) {
+        if self.accompaniments.len() > 0 {
+            self.accompaniments.pop();
+        }
+    }
+
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
@@ -99,17 +114,7 @@ impl Recorder {
             RecordingMode::Record => {
                 let now = Instant::now();
                 if !self.actively_recording() {
-                    let mut needs_new_blank = true;
-                    if let Some(most_recent) = self.accompaniments.last_mut() {
-                        let chords = chords_starts(most_recent);
-                        if chords.len() == 0 {
-                            most_recent.clear();
-                            needs_new_blank = false;
-                        }
-                    }
-                    if needs_new_blank {
-                        self.accompaniments.push(Recording::default());
-                    }
+                    self.accompaniments.push(Recording::default());
                     self.current_start = now;
                 }
                 self.accompaniments.last_mut().unwrap().add_message(

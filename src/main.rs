@@ -163,6 +163,10 @@ impl GameApp {
 
     fn render_recorder(&mut self, ui: &mut egui::Ui) {
         let mut recorder = self.recorder.lock().unwrap();
+        if !recorder.actively_recording() && recorder.last_accompaniment_spurious() {
+            recorder.delete_last_accompaniment();
+        }
+
         let timeout = recorder.timeout;
         let suffix = if timeout == 1.0 { "second" } else { "seconds" };
         ui.add(
