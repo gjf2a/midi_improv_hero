@@ -5,7 +5,9 @@ use crossbeam_utils::atomic::AtomicCell;
 use eframe::egui::{self, Pos2, Vec2, Visuals};
 use enum_iterator::all;
 use midi_fundsp::{
-    io::{Speaker, SynthMsg, get_first_midi_device, start_input_thread, start_output_thread}, sound_builders::ProgramTable, sounds::favorites
+    io::{Speaker, SynthMsg, get_first_midi_device, start_input_thread, start_output_thread},
+    sound_builders::ProgramTable,
+    sounds::favorites,
 };
 use midi_improv_hero::{
     recorder::{Recorder, RecordingMode},
@@ -175,19 +177,8 @@ impl GameApp {
         } else if recorder.is_empty() {
             ui.label("No recordings");
         } else {
-            let current = if recorder.len() == 1 {
-                ui.label("One recording");
-                &recorder[0]
-            } else {
-                let recs = format!("{} recordings", recorder.len());
-                ui.label(recs.as_str());
-                ui.heading("Select a Recording");
-                ui.add(
-                    egui::Slider::new(&mut self.selected_recording, 0..=recorder.len() - 1)
-                        .integer(),
-                );
-                &recorder[self.selected_recording]
-            };
+            let current =
+                Self::render_recording_header(ui, &mut self.selected_recording, &recorder);
             let cs = format!(
                 "{:.2}s; {}",
                 current.duration(),
@@ -197,25 +188,64 @@ impl GameApp {
         }
     }
 
+    fn render_recording_header<'a>(
+        ui: &mut egui::Ui,
+        selected_recording: &mut usize,
+        recorder: &'a Recorder,
+    ) -> &'a Recording {
+        if recorder.len() == 1 {
+            ui.label("One recording");
+            &recorder[0]
+        } else {
+            let recs = format!("{} recordings", recorder.len());
+            ui.label(recs.as_str());
+            ui.heading("Select a Recording");
+            ui.add(egui::Slider::new(selected_recording, 0..=recorder.len() - 1).integer());
+            &recorder[*selected_recording]
+        }
+    }
+
     fn render_settings(&mut self, ui: &mut egui::Ui) {
-        let sounds = self.synth_sounds.iter().map(|(n,_)| n.clone()).collect::<Vec<_>>();
+        let sounds = self
+            .synth_sounds
+            .iter()
+            .map(|(n, _)| n.clone())
+            .collect::<Vec<_>>();
         ui.horizontal(|ui| {
             let mut recorder = self.recorder.lock().unwrap();
             ui.radio_value(&mut recorder.free_speaker, Speaker::Left, "Left Speaker");
             ui.radio_value(&mut recorder.free_speaker, Speaker::Right, "Right Speaker");
         });
-        
+
         ui.horizontal(|ui| {
-            if let Some(changed) = Self::render_synth_sounds("Accompaniment", &mut self.accompaniment_sound, &sounds, ui) {
-                self.recorder.lock().unwrap().program_change(changed as u8, Speaker::Left);
+            if let Some(changed) = Self::render_synth_sounds(
+                "Accompaniment",
+                &mut self.accompaniment_sound,
+                &sounds,
+                ui,
+            ) {
+                self.recorder
+                    .lock()
+                    .unwrap()
+                    .program_change(changed as u8, Speaker::Left);
             }
-            if let Some(changed) = Self::render_synth_sounds("Solo", &mut self.solo_sound, &sounds, ui) {
-                self.recorder.lock().unwrap().program_change(changed as u8, Speaker::Right);
+            if let Some(changed) =
+                Self::render_synth_sounds("Solo", &mut self.solo_sound, &sounds, ui)
+            {
+                self.recorder
+                    .lock()
+                    .unwrap()
+                    .program_change(changed as u8, Speaker::Right);
             }
         });
     }
 
-    fn render_synth_sounds(label: &str, target: &mut usize, sounds: &Vec<String>, ui: &mut egui::Ui) -> Option<usize> {
+    fn render_synth_sounds(
+        label: &str,
+        target: &mut usize,
+        sounds: &Vec<String>,
+        ui: &mut egui::Ui,
+    ) -> Option<usize> {
         let start = *target;
         ui.vertical(|ui| {
             ui.label(label);

@@ -66,7 +66,8 @@ impl Recorder {
     }
 
     pub fn program_change(&self, program: u8, speaker: Speaker) {
-        self.outgoing.push(SynthMsg::program_change(program, speaker));
+        self.outgoing
+            .push(SynthMsg::program_change(program, speaker));
     }
 
     pub fn len(&self) -> usize {
