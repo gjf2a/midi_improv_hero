@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use crossbeam_queue::SegQueue;
 use crossbeam_utils::atomic::AtomicCell;
-use eframe::egui::{self, Pos2, Vec2, Visuals};
+use eframe::egui::{self, Align2, Color32, FontId, Pos2, Vec2, Visuals};
 use enum_iterator::all;
 use midi_fundsp::{
     io::{Speaker, SynthMsg, get_first_midi_device, start_input_thread, start_output_thread},
@@ -184,12 +184,12 @@ impl GameApp {
     }
 
     fn show_chords(ui: &mut egui::Ui, current: &Recording) {
-        let cs = format!(
-            "{:.2}s; {}",
-            current.duration(),
-            chords_starts_string(current)
-        );
-        ui.label(cs.as_str());
+        let painter = ui.painter();
+        let chord_starts = chords_starts(current);
+        let painter_box = painter.clip_rect();
+        for (chord, start) in chord_starts {
+            painter.text(Pos2 { x: (start / current.duration()) as f32 * painter_box.width(), y: painter_box.height() * 0.75 }, Align2::LEFT_TOP, format!("{chord}"), FontId::default(), Color32::BLUE);
+        }
     }
 
     fn render_recording_header<'a>(
@@ -293,14 +293,6 @@ fn chords_starts(recording: &Recording) -> Vec<(ChordName, f64)> {
         if push {
             result.push((chord.name(), start));
         }
-    }
-    result
-}
-
-fn chords_starts_string(recording: &Recording) -> String {
-    let mut result = String::new();
-    for (chord, start) in chords_starts(recording) {
-        result.push_str(format!("{chord} ({start:.2}s); ").as_str());
     }
     result
 }
