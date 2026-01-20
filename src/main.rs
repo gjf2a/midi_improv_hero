@@ -10,7 +10,9 @@ use midi_fundsp::{
     sounds::favorites,
 };
 use midi_improv_hero::{
-    chords_starts, recorder::{Recorder, RecordingMode}, setup_font
+    chords_starts,
+    recorder::{Recorder, RecordingMode},
+    setup_font,
 };
 use midi_note_recorder::Recording;
 use midir::MidiInput;
@@ -189,7 +191,10 @@ impl GameApp {
         let painter = ui.painter();
         let chord_starts = chords_starts(current);
         let painter_box = painter.clip_rect();
-        let name_str = chord_starts.iter().map(|(c,d)| format!(" {} {d:.2}", c.compact_name())).collect::<String>();
+        let name_str = chord_starts
+            .iter()
+            .map(|(c, d)| format!(" {} {d:.2}", c.compact_name()))
+            .collect::<String>();
         println!("rendering{name_str}");
         println!("{} {}", current.duration(), current.len());
         for (chord, start) in chord_starts {
