@@ -6,7 +6,8 @@ use midi_fundsp::note_velocity_from;
 use midi_note_recorder::Recording;
 use std::{ops::Index, sync::Arc, time::Instant};
 
-use crate::chords_starts;
+use music_analyzer_generator::analyzer::ChordProgression;
+
 
 #[derive(Sequence, Copy, Clone, PartialEq, Eq, Debug)]
 pub enum RecordingMode {
@@ -80,8 +81,7 @@ impl Recorder {
 
     pub fn last_accompaniment_spurious(&self) -> bool {
         if let Some(most_recent) = self.accompaniments.last() {
-            let chords = chords_starts(most_recent);
-            chords.len() == 0
+            ChordProgression::from(most_recent).len() == 0
         } else {
             false
         }

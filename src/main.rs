@@ -10,13 +10,12 @@ use midi_fundsp::{
     sounds::favorites,
 };
 use midi_improv_hero::{
-    chords_starts,
     recorder::{Recorder, RecordingMode},
     setup_font,
 };
-use midi_note_recorder::Recording;
+use midi_note_recorder::{Recording, analyzer::ChordProgression};
 use midir::MidiInput;
-use music_analyzer_generator::ChordName;
+use music_analyzer_generator::{ChordName, analyzer::ChordProgression};
 
 const MIN_TIMEOUT: f64 = 0.25;
 const MAX_TIMEOUT: f64 = 3.0;
@@ -200,14 +199,14 @@ impl GameApp {
         playback_progress: Arc<AtomicCell<Option<f64>>>,
     ) {
         let painter = ui.painter();
-        let chord_starts = chords_starts(current);
-        Self::paint_spaced_chords(painter, &chord_starts, current.duration());
+        let progression = ChordProgression::from(current);
+        Self::paint_spaced_chords(painter, &progression, current.duration());
         Self::paint_progress_bar(painter, current.duration(), playback_progress.clone());
     }
 
-    fn paint_spaced_chords(painter: &Painter, chord_starts: &Vec<(ChordName, f64)>, duration: f64) {
+    fn paint_spaced_chords(painter: &Painter, progression: &ChordProgression, duration: f64) {
         let painter_box = painter.clip_rect();
-        for (chord, start) in chord_starts {
+        for (chord, start) in progression.chord_start_iter() {
             painter.text(
                 Pos2 {
                     x: (start / duration) as f32 * painter_box.width(),
