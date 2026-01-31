@@ -172,6 +172,10 @@ impl Recorder {
             incoming.push(SynthMsg::all_notes_off(midi_fundsp::io::Speaker::Left));
         });
     }
+
+    pub fn current_solo(&self) -> Option<&Recording> {
+        self.solos.last()
+    }
 }
 
 impl Index<usize> for Recorder {

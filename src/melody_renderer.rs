@@ -16,6 +16,7 @@ use music_analyzer_generator::{
     scales::{RootedScale, ScaleMode},
 };
 
+const MAIN_MELODY_SCALING: f32 = 0.8;
 const MIDDLE_C: u8 = 60;
 const STAFF_PITCH_WIDTH: u8 = 19;
 const LOWEST_STAFF_PITCH: u8 = MIDDLE_C - STAFF_PITCH_WIDTH;
@@ -48,6 +49,23 @@ const SHARP_ORDER: [NoteLetter; 7] = [
     NoteLetter::B,
 ];
 
+fn key_sig_sharps(sharps: &HashSet<NoteLetter>) -> Vec<NoteLetter> {
+    SHARP_ORDER
+        .iter()
+        .filter(|nl| sharps.contains(*nl))
+        .copied()
+        .collect()
+}
+
+fn key_sig_flats(flats: &HashSet<NoteLetter>) -> Vec<NoteLetter> {
+    SHARP_ORDER
+        .iter()
+        .rev()
+        .filter(|nl| flats.contains(*nl))
+        .copied()
+        .collect()
+}
+
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct KeySignature {
     notes: Vec<NoteLetter>,
@@ -60,21 +78,12 @@ impl From<&RootedScale> for KeySignature {
         let flats = value.all_flats().collect::<HashSet<_>>();
         if sharps.len() > 0 {
             Self {
-                notes: SHARP_ORDER
-                    .iter()
-                    .filter(|nl| sharps.contains(*nl))
-                    .copied()
-                    .collect(),
+                notes: key_sig_sharps(&sharps),
                 accidental: Accidental::Sharp,
             }
         } else if flats.len() > 0 {
             Self {
-                notes: SHARP_ORDER
-                    .iter()
-                    .rev()
-                    .filter(|nl| flats.contains(*nl))
-                    .copied()
-                    .collect(),
+                notes: key_sig_flats(&flats),
                 accidental: Accidental::Flat,
             }
         } else {
@@ -162,32 +171,8 @@ pub struct MelodyRenderer {
 }
 
 impl MelodyRenderer {
-    fn staff_line_space(&self) -> f32 {
-        self.y_per_pitch * 2.0
-    }
-
-    fn space_above_staff(&self) -> f32 {
-        let highest_staff = self.scale.round_up(HIGHEST_STAFF_PITCH as u8);
-        let highest_pitch = self.scale.round_up(self.hi as u8);
-        1.0 + self
-            .scale
-            .diatonic_steps_between(highest_staff, highest_pitch)
-            .unwrap() as f32
-    }
-
-    fn min_x(&self) -> f32 {
-        *self.x_range.start()
-    }
-
-    fn total_note_x(&self) -> f32 {
-        *self.x_range.end() - self.note_offset_x()
-    }
-
-    fn note_offset_x(&self) -> f32 {
-        self.min_x() + X_OFFSET + KEY_SIGNATURE_OFFSET + self.y_per_pitch * self.sig.len() as f32
-    }
-
-    pub fn render(ui: &mut Ui, size: Vec2, melodies: &Vec<(Melody, Color32)>) {
+    pub fn render(ui: &mut Ui, melodies: &Vec<(Melody, Color32)>) {
+        let size = Vec2::new(ui.available_width(), ui.available_height() * MAIN_MELODY_SCALING);
         if melodies.len() > 0 {
             let (response, painter) = ui.allocate_painter(size, Sense::hover());
             let scale = melodies[0].0.highest_weight_scale();
@@ -220,6 +205,31 @@ impl MelodyRenderer {
                 renderer.draw_melody(&painter, melody, *color);
             }
         }
+    }
+
+    fn staff_line_space(&self) -> f32 {
+        self.y_per_pitch * 2.0
+    }
+
+    fn space_above_staff(&self) -> f32 {
+        let highest_staff = self.scale.round_up(HIGHEST_STAFF_PITCH as u8);
+        let highest_pitch = self.scale.round_up(self.hi as u8);
+        1.0 + self
+            .scale
+            .diatonic_steps_between(highest_staff, highest_pitch)
+            .unwrap() as f32
+    }
+
+    fn min_x(&self) -> f32 {
+        *self.x_range.start()
+    }
+
+    fn total_note_x(&self) -> f32 {
+        *self.x_range.end() - self.note_offset_x()
+    }
+
+    fn note_offset_x(&self) -> f32 {
+        self.min_x() + X_OFFSET + KEY_SIGNATURE_OFFSET + self.y_per_pitch * self.sig.len() as f32
     }
 
     fn draw_melody(&self, painter: &Painter, melody: &Melody, color: Color32) {
@@ -293,9 +303,10 @@ impl MelodyRenderer {
         let mut lo = LOWEST_STAFF_PITCH;
         let mut hi = HIGHEST_STAFF_PITCH;
         for (melody, _) in melodies.iter() {
-            let (mlo, mhi) = melody.min_max_pitches();
-            lo = min(lo, mlo);
-            hi = max(hi, mhi);
+            if let Some((mlo, mhi)) = melody.min_max_pitches() {
+                lo = min(lo, mlo);
+                hi = max(hi, mhi);
+            }
         }
         (scale.round_down(lo), scale.round_up(hi))
     }

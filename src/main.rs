@@ -10,12 +10,11 @@ use midi_fundsp::{
     sounds::favorites,
 };
 use midi_improv_hero::{
-    recorder::{Recorder, RecordingMode},
-    setup_font,
+    melody_renderer::MelodyRenderer, recorder::{Recorder, RecordingMode}, setup_font
 };
 use midi_note_recorder::Recording;
 use midir::MidiInput;
-use music_analyzer_generator::analyzer::ChordProgression;
+use music_analyzer_generator::analyzer::{ChordProgression, Melody};
 
 const MIN_TIMEOUT: f64 = 0.25;
 const MAX_TIMEOUT: f64 = 3.0;
@@ -96,6 +95,10 @@ impl eframe::App for GameApp {
                     let mut recorder = self.recorder.lock().unwrap();
                     if recorder.actively_soloing() {
                         ui.label("Soloing...");
+                        if let Some(solo) = recorder.current_solo() {
+                            let melody: Melody = Melody::from(solo);
+                            MelodyRenderer::render(ui, &vec![(melody, Color32::BLACK)]);
+                        }
                     } else {
                         if ui.button("Start accompaniment").clicked() {
                             recorder.start_solo_thread(
