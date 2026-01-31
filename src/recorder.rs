@@ -8,7 +8,6 @@ use std::{ops::Index, sync::Arc, time::Instant};
 
 use music_analyzer_generator::analyzer::ChordProgression;
 
-
 #[derive(Sequence, Copy, Clone, PartialEq, Eq, Debug)]
 pub enum RecordingMode {
     Playthrough,

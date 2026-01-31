@@ -1,5 +1,5 @@
-pub mod recorder;
 pub mod melody_renderer;
+pub mod recorder;
 
 use std::path::PathBuf;
 

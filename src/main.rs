@@ -13,9 +13,9 @@ use midi_improv_hero::{
     recorder::{Recorder, RecordingMode},
     setup_font,
 };
-use midi_note_recorder::{Recording, analyzer::ChordProgression};
+use midi_note_recorder::Recording;
 use midir::MidiInput;
-use music_analyzer_generator::{ChordName, analyzer::ChordProgression};
+use music_analyzer_generator::analyzer::ChordProgression;
 
 const MIN_TIMEOUT: f64 = 0.25;
 const MAX_TIMEOUT: f64 = 3.0;
