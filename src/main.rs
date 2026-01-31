@@ -93,22 +93,7 @@ impl eframe::App for GameApp {
                     ctx.request_repaint_after_secs(FRAME_INTERVAL);
                 }
                 RecordingMode::SoloOver => {
-                    self.render_recorder(ui);
-                    let mut recorder = self.recorder.lock().unwrap();
-                    if recorder.actively_soloing() {
-                        ui.label("Soloing...");
-                        if let Some(solo) = recorder.current_solo() {
-                            let melody: Melody = Melody::from(solo);
-                            MelodyRenderer::render(ui, &vec![(melody, Color32::BLACK)]);
-                        }
-                    } else {
-                        if ui.button("Start accompaniment").clicked() {
-                            recorder.start_solo_thread(
-                                self.selected_recording,
-                                self.playback_progress.clone(),
-                            );
-                        }
-                    }
+                    self.render_solo(ui);
                     ctx.request_repaint_after_secs(FRAME_INTERVAL);
                 }
                 RecordingMode::Playthrough => {
@@ -200,6 +185,22 @@ impl GameApp {
         }
     }
 
+    fn render_solo(&mut self, ui: &mut egui::Ui) {
+        self.render_recorder(ui);
+        let mut recorder = self.recorder.lock().unwrap();
+        if recorder.actively_soloing() {
+            ui.label("Soloing...");
+        } else {
+            if ui.button("Start accompaniment").clicked() {
+                recorder.start_solo_thread(self.selected_recording, self.playback_progress.clone());
+            }
+        }
+        if let Some(solo) = recorder.current_solo() {
+            let melody: Melody = Melody::from(solo);
+            MelodyRenderer::render(ui, &vec![(melody, Color32::BLACK)]);
+        }
+    }
+
     fn show_chords(
         ui: &mut egui::Ui,
         current: &Recording,
@@ -256,15 +257,18 @@ impl GameApp {
         selected_recording: &mut usize,
         recorder: &'a Recorder,
     ) -> &'a Recording {
-        if recorder.len() == 1 {
+        if recorder.num_accompaniments() == 1 {
             ui.label("One recording");
-            &recorder[0]
+            &recorder.accompaniment(0)
         } else {
-            let recs = format!("{} recordings", recorder.len());
+            let recs = format!("{} recordings", recorder.num_accompaniments());
             ui.label(recs.as_str());
             ui.heading("Select a Recording");
-            ui.add(egui::Slider::new(selected_recording, 0..=recorder.len() - 1).integer());
-            &recorder[*selected_recording]
+            ui.add(
+                egui::Slider::new(selected_recording, 0..=recorder.num_accompaniments() - 1)
+                    .integer(),
+            );
+            &recorder.accompaniment(*selected_recording)
         }
     }
 

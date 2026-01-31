@@ -4,7 +4,7 @@ use enum_iterator::Sequence;
 use midi_fundsp::io::{Speaker, SynthMsg};
 use midi_fundsp::note_velocity_from;
 use midi_note_recorder::Recording;
-use std::{ops::Index, sync::Arc, time::Instant};
+use std::{sync::Arc, time::Instant};
 
 use music_analyzer_generator::analyzer::ChordProgression;
 
@@ -74,8 +74,20 @@ impl Recorder {
             .push(SynthMsg::program_change(program, speaker));
     }
 
-    pub fn len(&self) -> usize {
+    pub fn num_accompaniments(&self) -> usize {
         self.accompaniments.len()
+    }
+
+    pub fn accompaniment(&self, i: usize) -> &Recording {
+        &self.accompaniments[i]
+    }
+
+    pub fn num_solos(&self) -> usize {
+        self.solos.len()
+    }
+
+    pub fn solo(&self, i: usize) -> &Recording {
+        &self.solos[i]
     }
 
     pub fn last_accompaniment_spurious(&self) -> bool {
@@ -93,7 +105,7 @@ impl Recorder {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.len() == 0
+        self.num_accompaniments() == 0
     }
 
     pub fn input_port_name(&self) -> &str {
@@ -175,13 +187,5 @@ impl Recorder {
 
     pub fn current_solo(&self) -> Option<&Recording> {
         self.solos.last()
-    }
-}
-
-impl Index<usize> for Recorder {
-    type Output = Recording;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.accompaniments[index]
     }
 }
