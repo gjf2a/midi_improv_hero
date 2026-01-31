@@ -31,6 +31,9 @@ const LINE_STROKE: Stroke = Stroke {
     width: 1.0,
     color: Color32::BLACK,
 };
+const NUM_NOTES_ON_STAFF: usize = 11;
+const TREBLE_INITIAL_OFFSET: u8 = 3;
+const BASS_TO_TREBLE_OFFSET: u8 = 14;
 
 pub fn font_id(size: f32) -> FontId {
     FontId {
@@ -94,10 +97,6 @@ impl From<&RootedScale> for KeySignature {
         }
     }
 }
-
-const NUM_NOTES_ON_STAFF: usize = 11;
-const TREBLE_INITIAL_OFFSET: u8 = 3;
-const BASS_TO_TREBLE_OFFSET: u8 = 14;
 
 impl KeySignature {
     pub fn len(&self) -> usize {
@@ -180,13 +179,18 @@ impl MelodyRenderer {
             let (response, painter) = ui.allocate_painter(size, Sense::hover());
             let scale = melodies[0].0.highest_weight_scale();
             let (lo, hi) = Self::min_max_staff(&scale, melodies);
-            println!("{lo} {hi} {} {:?}", scale.root_name(), scale.mode());
             let num_diatonic_pitches = 1 + scale.diatonic_steps_between(lo, hi).unwrap();
             let y_per_pitch = ((response.rect.max.y - response.rect.min.y) - BORDER_SIZE * 2.0)
                 / num_diatonic_pitches as f32;
             let y_border = Y_OFFSET + response.rect.min.y;
             let sig = KeySignature::from(&scale);
-            let steps = scale.diatonic_steps_to_middle_c(scale.round_up(hi));
+            let scale_hi = scale.round_up(hi);
+            println!(
+                "scale: {} {:?} (hi: {scale_hi})",
+                scale.root_name(),
+                scale.mode()
+            );
+            let steps = scale.diatonic_steps_to_middle_c(scale_hi);
             let y_middle_c = y_border + y_per_pitch * steps as f32;
             let renderer = MelodyRenderer {
                 hi,
@@ -341,8 +345,11 @@ impl<'a> IncrementalNoteRenderer<'a> {
     }
 
     fn show_note(&self, x: f32, y: f32) {
-        self.painter
-            .circle_filled(Pos2 { x, y }, self.renderer.y_per_pitch, self.note_color);
+        self.painter.circle_filled(
+            Pos2 { x, y },
+            self.renderer.y_per_pitch / 2.0,
+            self.note_color,
+        );
         if let Some(auxiliary_symbol) = self.auxiliary_symbol {
             let x = x + self.renderer.staff_line_space();
             self.renderer

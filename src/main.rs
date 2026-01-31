@@ -25,36 +25,6 @@ const NUM_CHANNELS: usize = 10;
 const FPS: f32 = 20.0;
 const FRAME_INTERVAL: f32 = 1.0 / FPS;
 
-// Vision for this program
-//
-// Version 1:
-// * Records a chord progression, displaying notes & chords as it records.
-// * Stops after a sufficient pause.
-// * Lets you save the chord progression.
-// * You can load and play chord progressions.
-//
-// Version 2:
-// * When you play a chord progression, you can play over it.
-// * When the chord progression ends, it displays a score for your melody.
-// * Score components:
-//   * A point for each note that is part of a melodic figure.
-//   * A point for each note that is part of a scale for the chord it is over.
-//   * Subtract a point for notes that fail the above criteria.
-//
-// Version 3:
-// * Once you have played at least one melody over a chord progression,
-//   you can ask it to generate a melody for you to match.
-// * Scoring is based on how closely you hit the notes.
-// * The note durations will be taken from one of your melodies for that progression.
-// * The melody itself will be generated as follows:
-//   * Start with the same note as the source melody.
-//   * For each succeeding note:
-//     * Pick randomly from the following:
-//       * Notes that are part of a scale associated with the current chord.
-//       * Notes that continue a melodic figure from the preceding notes.
-//   * End with the same note as the original melody. Restrict the last few
-//     as needed in order to make this work.
-
 fn main() {
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
@@ -89,7 +59,11 @@ impl eframe::App for GameApp {
             self.mode_buttons(ui);
             match self.recording_mode() {
                 RecordingMode::Record => {
-                    self.render_recorder(ui);
+                    self.render_recorder(ui, false);
+                    ctx.request_repaint_after_secs(FRAME_INTERVAL);
+                }
+                RecordingMode::PlaybackAccompaniments => {
+                    self.render_recorder(ui, true);
                     ctx.request_repaint_after_secs(FRAME_INTERVAL);
                 }
                 RecordingMode::SoloOver => {
@@ -161,7 +135,7 @@ impl GameApp {
         });
     }
 
-    fn render_recorder(&mut self, ui: &mut egui::Ui) {
+    fn render_recorder(&mut self, ui: &mut egui::Ui, playback_button: bool) {
         let mut recorder = self.recorder.lock().unwrap();
         if !recorder.actively_recording() && recorder.last_accompaniment_spurious() {
             recorder.delete_last_accompaniment();
@@ -182,17 +156,30 @@ impl GameApp {
             let current =
                 Self::render_recording_header(ui, &mut self.selected_recording, &recorder);
             Self::show_chords(ui, current, self.playback_progress.clone());
+            if playback_button {
+                if ui.button("Play chords").clicked() {
+                    recorder.start_accompaniment_playback_thread(
+                        self.selected_recording,
+                        false,
+                        self.playback_progress.clone(),
+                    );
+                }
+            }
         }
     }
 
     fn render_solo(&mut self, ui: &mut egui::Ui) {
-        self.render_recorder(ui);
+        self.render_recorder(ui, false);
         let mut recorder = self.recorder.lock().unwrap();
         if recorder.actively_soloing() {
             ui.label("Soloing...");
         } else {
             if ui.button("Start accompaniment").clicked() {
-                recorder.start_solo_thread(self.selected_recording, self.playback_progress.clone());
+                recorder.start_accompaniment_playback_thread(
+                    self.selected_recording,
+                    true,
+                    self.playback_progress.clone(),
+                );
             }
         }
         if let Some(solo) = recorder.current_solo() {
@@ -218,7 +205,7 @@ impl GameApp {
             painter.text(
                 Pos2 {
                     x: (start / duration) as f32 * painter_box.width(),
-                    y: painter_box.height() * 0.75,
+                    y: painter_box.height() * 0.85,
                 },
                 Align2::LEFT_TOP,
                 chord.compact_name(),

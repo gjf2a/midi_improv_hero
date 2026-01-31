@@ -12,6 +12,7 @@ use music_analyzer_generator::analyzer::ChordProgression;
 pub enum RecordingMode {
     Playthrough,
     Record,
+    PlaybackAccompaniments,
     SoloOver,
 }
 
@@ -20,6 +21,7 @@ impl RecordingMode {
         match self {
             Self::Playthrough => "Play Freely",
             Self::Record => "Record Accompaniment",
+            Self::PlaybackAccompaniments => "Playback Accompaniment",
             Self::SoloOver => "Solo Over Recording",
         }
     }
@@ -64,7 +66,7 @@ impl Recorder {
     pub fn live_speaker(&self) -> Speaker {
         match self.mode {
             RecordingMode::Playthrough => self.free_speaker,
-            RecordingMode::Record => Speaker::Left,
+            RecordingMode::Record | RecordingMode::PlaybackAccompaniments => Speaker::Left,
             RecordingMode::SoloOver => Speaker::Right,
         }
     }
@@ -131,43 +133,49 @@ impl Recorder {
 
     pub fn receive(&mut self, msg: SynthMsg) {
         match self.mode {
-            RecordingMode::Playthrough => {}
-            RecordingMode::Record => {
-                let now = Instant::now();
-                if !self.actively_recording() {
-                    self.accompaniments.push(Recording::default());
-                    self.current_start = now;
-                }
-                self.accompaniments.last_mut().unwrap().add_message(
-                    now.duration_since(self.current_start).as_secs_f64(),
-                    &msg.msg,
-                );
-                self.last_msg = now;
-            }
-            RecordingMode::SoloOver => {
-                if let Some(duration) = self.solo_duration {
-                    let now = Instant::now();
-                    let so_far = now.duration_since(self.current_start).as_secs_f64();
-                    if so_far > duration {
-                        self.solo_duration = None;
-                    } else {
-                        self.solos.last_mut().unwrap().add_message(so_far, &msg.msg);
-                    }
-                    self.last_msg = now;
-                }
-            }
+            RecordingMode::Playthrough | RecordingMode::PlaybackAccompaniments => {}
+            RecordingMode::Record => self.receive_accompaniment(msg),
+            RecordingMode::SoloOver => self.receive_solo(msg),
         }
     }
 
-    pub fn start_solo_thread(
+    fn receive_accompaniment(&mut self, msg: SynthMsg) {
+        let now = Instant::now();
+        if !self.actively_recording() {
+            self.accompaniments.push(Recording::default());
+            self.current_start = now;
+        }
+        self.accompaniments.last_mut().unwrap().add_message(
+            now.duration_since(self.current_start).as_secs_f64(),
+            &msg.msg,
+        );
+        self.last_msg = now;
+    }
+
+    fn receive_solo(&mut self, msg: SynthMsg) {
+        if let Some(duration) = self.solo_duration {
+            let now = Instant::now();
+            let so_far = now.duration_since(self.current_start).as_secs_f64();
+            if so_far > duration {
+                self.solo_duration = None;
+            } else {
+                self.solos.last_mut().unwrap().add_message(so_far, &msg.msg);
+            }
+            self.last_msg = now;
+        }
+    }
+
+    pub fn start_accompaniment_playback_thread(
         &mut self,
         selected: usize,
+        soloing: bool,
         playback_progress: Arc<AtomicCell<Option<f64>>>,
     ) {
-        assert_eq!(self.mode, RecordingMode::SoloOver);
         let backing = self.accompaniments[selected].clone();
-        self.solo_duration = Some(backing.duration());
-        self.solos.push(Recording::default());
+        if soloing {
+            self.solo_duration = Some(backing.duration());
+            self.solos.push(Recording::default());
+        }
         self.current_start = Instant::now();
         let incoming = self.incoming.clone();
         let outgoing = self.outgoing.clone();
