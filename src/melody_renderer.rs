@@ -172,22 +172,22 @@ pub struct MelodyRenderer {
 
 impl MelodyRenderer {
     pub fn render(ui: &mut Ui, melodies: &Vec<(Melody, Color32)>) {
-        let size = Vec2::new(ui.available_width(), ui.available_height() * MAIN_MELODY_SCALING);
-        if melodies.len() > 0 {
+        let size = Vec2::new(
+            ui.available_width(),
+            ui.available_height() * MAIN_MELODY_SCALING,
+        );
+        if melodies.len() > 0 && melodies.iter().any(|(m, _)| m.len() > 0) {
             let (response, painter) = ui.allocate_painter(size, Sense::hover());
             let scale = melodies[0].0.highest_weight_scale();
             let (lo, hi) = Self::min_max_staff(&scale, melodies);
-            let num_diatonic_pitches =
-                1 + scale.diatonic_steps_between(lo as u8, hi as u8).unwrap();
+            println!("{lo} {hi} {} {:?}", scale.root_name(), scale.mode());
+            let num_diatonic_pitches = 1 + scale.diatonic_steps_between(lo, hi).unwrap();
             let y_per_pitch = ((response.rect.max.y - response.rect.min.y) - BORDER_SIZE * 2.0)
                 / num_diatonic_pitches as f32;
             let y_border = Y_OFFSET + response.rect.min.y;
             let sig = KeySignature::from(&scale);
-            let y_middle_c = y_border
-                + y_per_pitch
-                    * scale
-                        .diatonic_steps_between(MIDDLE_C, scale.round_up(hi))
-                        .unwrap() as f32;
+            let steps = scale.diatonic_steps_to_middle_c(scale.round_up(hi));
+            let y_middle_c = y_border + y_per_pitch * steps as f32;
             let renderer = MelodyRenderer {
                 hi,
                 scale,
