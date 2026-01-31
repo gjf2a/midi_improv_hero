@@ -164,7 +164,9 @@ impl GameApp {
         let mut recorder = self.recorder.lock().unwrap();
         ui.horizontal(|ui| {
             for option in all::<RecordingMode>() {
-                ui.radio_value(&mut recorder.mode, option, option.text());
+                if option != RecordingMode::SoloOver || !recorder.is_empty() {
+                    ui.radio_value(&mut recorder.mode, option, option.text());
+                }
             }
         });
     }
