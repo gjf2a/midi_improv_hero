@@ -10,10 +10,9 @@ use midi_fundsp::{
     sounds::favorites,
 };
 use midi_improv_hero::{
-    melody_renderer::MelodyRenderer,
     recorder::{Recorder, RecordingMode},
-    setup_font,
 };
+use midi_melody_gui::{melody_renderer::MelodyRenderer, setup_font};
 use midi_note_recorder::Recording;
 use midir::MidiInput;
 use music_analyzer_generator::analyzer::{ChordProgression, Melody};

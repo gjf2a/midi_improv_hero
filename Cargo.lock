@@ -2041,10 +2041,28 @@ dependencies = [
  "enum-iterator",
  "midi-msg",
  "midi_fundsp",
+ "midi_melody_gui",
  "midi_note_recorder",
  "midir",
  "music_analyzer_generator",
  "ordered-float",
+]
+
+[[package]]
+name = "midi_melody_gui"
+version = "0.1.0"
+source = "git+https://github.com/gjf2a/midi_melody_gui#2f2b5bd89cb98aa95ac79ac93e2baada10f6897b"
+dependencies = [
+ "anyhow",
+ "bare_metal_modulo",
+ "crossbeam-queue",
+ "crossbeam-utils",
+ "eframe",
+ "enum-iterator",
+ "midi_fundsp",
+ "midi_note_recorder",
+ "midir",
+ "music_analyzer_generator",
 ]
 
 [[package]]
