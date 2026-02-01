@@ -185,28 +185,31 @@ impl MelodyRenderer {
             let y_border = Y_OFFSET + response.rect.min.y;
             let sig = KeySignature::from(&scale);
             let scale_hi = scale.round_up(hi);
-            println!(
-                "scale: {} {:?} (hi: {scale_hi})",
-                scale.root_name(),
-                scale.mode()
-            );
-            let steps = scale.diatonic_steps_to_middle_c(scale_hi);
-            let y_middle_c = y_border + y_per_pitch * steps as f32;
-            let renderer = MelodyRenderer {
-                hi,
-                scale,
-                y_per_pitch,
-                x_range: response.rect.min.x + BORDER_SIZE..=response.rect.max.x - BORDER_SIZE,
-                //y_range: response.rect.min.y + BORDER_SIZE..=response.rect.max.y - BORDER_SIZE,
-                sig,
-                y_middle_c,
-            };
-            let y_treble = y_border + y_per_pitch * renderer.space_above_staff();
-            renderer.draw_staff(&painter, Clef::Treble, y_treble);
-            let y_bass = renderer.y_middle_c + renderer.staff_line_space();
-            renderer.draw_staff(&painter, Clef::Bass, y_bass);
-            for (melody, color) in melodies.iter().rev() {
-                renderer.draw_melody(&painter, melody, *color);
+            if let Some(steps) = scale.diatonic_steps_to_middle_c(scale_hi) {
+                let y_middle_c = y_border + y_per_pitch * steps as f32;
+                let renderer = MelodyRenderer {
+                    hi,
+                    scale,
+                    y_per_pitch,
+                    x_range: response.rect.min.x + BORDER_SIZE..=response.rect.max.x - BORDER_SIZE,
+                    //y_range: response.rect.min.y + BORDER_SIZE..=response.rect.max.y - BORDER_SIZE,
+                    sig,
+                    y_middle_c,
+                };
+                let y_treble = y_border + y_per_pitch * renderer.space_above_staff();
+                renderer.draw_staff(&painter, Clef::Treble, y_treble);
+                let y_bass = renderer.y_middle_c + renderer.staff_line_space();
+                renderer.draw_staff(&painter, Clef::Bass, y_bass);
+                for (melody, color) in melodies.iter().rev() {
+                    renderer.draw_melody(&painter, melody, *color);
+                }
+            } else {
+                println!(
+                    "middle-c failed: scale: {} {:?} (hi: {scale_hi})",
+                    scale.root_name(),
+                    scale.mode()
+                );
+                println!("{:?}", melodies[0].0);
             }
         }
     }
