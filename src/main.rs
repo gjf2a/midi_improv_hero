@@ -200,7 +200,7 @@ impl GameApp {
 
     fn paint_spaced_chords(painter: &Painter, progression: &ChordProgression, duration: f64) {
         let painter_box = painter.clip_rect();
-        for (chord, start) in progression.chord_start_iter() {
+        for (chord, start, _) in progression.chord_start_end_iter() {
             painter.text(
                 Pos2 {
                     x: (start / duration) as f32 * painter_box.width(),
